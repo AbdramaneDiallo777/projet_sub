@@ -1,0 +1,14 @@
+variable,importance_shap
+TotalPastDueIncidents,0.8605962
+RevolvingUtilizationOfUnsecuredLines,0.6911347
+age,0.23244949
+NumberOfOpenCreditLinesAndLoans,0.178276
+DebtRatio,0.15392539
+NumberRealEstateLoansOrLines,0.11437909
+MonthlyIncome,0.098644905
+NumberOfTimes90DaysLate,0.096642874
+IncomePerDependent,0.045806337
+NumberOfTime60-89DaysPastDueNotWorse,0.04049708
+NumberOfTime30-59DaysPastDueNotWorse,0.029199475
+NumberOfDependents,0.013542833
+HasPastDueHistory,0.0
