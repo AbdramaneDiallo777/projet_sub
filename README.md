@@ -224,6 +224,12 @@ Ensuite, ouvrir :
 
 pour tester l’API Swagger.
 
+### Étape 7 (optionnelle) : tests automatisés
+
+```bash
+pytest tests/
+```
+
 ---
 
 ## Résultats attendus
@@ -269,10 +275,70 @@ Le projet produit des fichiers dans le dossier [reports](reports) :
 ## Limites / pistes d’amélioration
 
 - explorer d’autres modèles (LightGBM, CatBoost, stacking),
-- tester des seuils de décision plus adaptés au contexte métier,
-- améliorer la gestion du déséquilibre avec d’autres méthodes,
 - intégrer un monitoring des performances en production,
-- ajouter une interface front-end simple pour démonstration.
+- ajouter une interface front-end simple pour démonstration,
+- objectiver le compromis équité/performance avec l'équipe métier avant
+  toute mise en production (voir section corrections ci-dessous).
+
+---
+
+## Corrections apportées suite à revue de code
+
+Une revue a identifié plusieurs problèmes méthodologiques ; voici les
+corrections apportées :
+
+1. **Fuite de données (data leakage) corrigée.** Auparavant, l'imputation
+   des valeurs manquantes et le capping des outliers étaient calculés sur
+   tout le dataset avant le split train/test. Désormais, le split est
+   fait en premier, et toutes les statistiques (médianes, seuils de
+   percentile) sont calculées uniquement sur le train (voir
+   `src/preprocessing.py`, fonctions `fit_cleaning_params` /
+   `apply_cleaning`), puis appliquées telles quelles au test et à l'API.
+
+2. **Mitigation de l'inéquité par âge**, et non plus simple constat.
+   `src/05_equite.py` applique désormais `fairlearn.postprocessing
+   .ThresholdOptimizer` (contrainte `equalized_odds`, objectif
+   `balanced_accuracy_score`) sur le modèle déjà entraîné. Résultat sur
+   ce dataset : demographic parity difference 0.40 → 0.05, equalized odds
+   difference 0.40 → 0.08 (tolérance usuelle < 0.10), au prix d'une
+   baisse de recall global (0.78 → 0.73) — un compromis à valider avec
+   l'équipe métier avant production. L'API utilise cette version corrigée
+   pour la décision finale, tout en gardant la probabilité brute et
+   l'explication SHAP du modèle original pour la transparence.
+
+3. **Seuil de décision optimisé** au lieu du seuil arbitraire de 0.5 :
+   recherché par validation croisée sur le train (maximisation du
+   F1-score sur la classe "défaut"), sauvegardé dans
+   `reports/decision_threshold.json`.
+
+4. **Versions des dépendances figées** dans `requirements.txt`
+   (`pandas==2.2.3` notamment : une version plus récente de pandas casse
+   `fairlearn.postprocessing.ThresholdOptimizer`). `imbalanced-learn` a
+   été retiré car jamais utilisé (le déséquilibre est déjà géré via
+   `class_weight` / `scale_pos_weight`).
+
+5. **`.gitignore` réel ajouté** (mentionné dans le README initial mais
+   absent) : exclut `.venv/`, `__pycache__/`, les CSV volumineux et les
+   modèles `.pkl` du suivi git.
+
+6. **Chemins robustes** : tous les scripts utilisent désormais des
+   chemins relatifs à leur propre emplacement (`Path(__file__)`) au lieu
+   de chemins relatifs au dossier de lancement — ils fonctionnent
+   maintenant depuis n'importe quel répertoire de travail.
+
+7. **Logique de preprocessing dédupliquée** entre le pipeline
+   d'entraînement et l'API (`src/preprocessing.py` partagé), pour
+   garantir que l'API applique exactement le même nettoyage que
+   l'entraînement.
+
+8. **Tests automatisés ajoutés** (`tests/`) : tests unitaires du
+   preprocessing (dont un test anti-régression sur le data leakage) et
+   tests de l'API (`pytest tests/`).
+
+Point non corrigé, documenté comme limite assumée : la robustesse au
+bruit reste à la limite du seuil visé (~5% de décisions qui changent
+avec une perturbation de ±5% des variables), ce qui n'a pas justifié de
+changement de modèle à ce stade.
 
 ---
 

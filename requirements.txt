@@ -1,11 +1,26 @@
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-xgboost
-shap
-fairlearn
-fastapi
-uvicorn
-imbalanced-learn
+# Versions figées et testées ensemble.
+# NOTE : pandas>=3.0 casse fairlearn.postprocessing.ThresholdOptimizer
+# (incompatibilite de dtype interne a fairlearn 0.14.0). pandas==2.2.3
+# est la version validee pour ce projet.
+pandas==2.2.3
+numpy==2.4.4
+matplotlib==3.10.8
+seaborn==0.13.2
+scikit-learn==1.8.0
+xgboost==3.4.1
+shap==0.52.0
+fairlearn==0.14.0
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+
+# imbalanced-learn a ete retire : le desequilibre de classes est deja
+# traite via class_weight="balanced" (regression logistique) et
+# scale_pos_weight (XGBoost). Ajouter du sur-echantillonnage SMOTE
+# par-dessus serait redondant et risquerait de fausser les probabilites
+# calibrees. Si un re-echantillonnage explicite devient necessaire :
+# imbalanced-learn==0.13.0
+
+# Dépendances de test (dev)
+pytest==8.4.2
+httpx==0.28.1

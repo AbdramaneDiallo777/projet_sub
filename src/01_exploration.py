@@ -8,15 +8,24 @@ Comment lancer :
     2. python src/01_exploration.py
 """
 
+from pathlib import Path
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # ----------------------------------------------------------------
+# 0. Chemins robustes (indépendants du dossier depuis lequel on lance)
+# ----------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+DATA_PATH = DATA_DIR / "cs-training.csv"
+
+# ----------------------------------------------------------------
 # 1. Chargement des données
 # ----------------------------------------------------------------
-DATA_PATH = "data/cs-training.csv"
-
 df = pd.read_csv(DATA_PATH, index_col=0)  # la première colonne est un index inutile
 
 print("=" * 60)
@@ -56,7 +65,7 @@ print("→ Dataset déséquilibré : à traiter en étape 2 (SMOTE ou class_weig
 plt.figure(figsize=(5, 4))
 sns.countplot(x="SeriousDlqin2yrs", data=df)
 plt.title("Distribution de la target")
-plt.savefig("reports/target_distribution.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "target_distribution.png", dpi=120, bbox_inches="tight")
 plt.close()
 
 # ----------------------------------------------------------------
@@ -98,7 +107,7 @@ plt.figure(figsize=(10, 8))
 sns.heatmap(df.corr(), annot=True, fmt=".2f", cmap="coolwarm", center=0)
 plt.title("Matrice de corrélation")
 plt.tight_layout()
-plt.savefig("reports/correlation_matrix.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "correlation_matrix.png", dpi=120, bbox_inches="tight")
 plt.close()
 
 print("\n" + "=" * 60)

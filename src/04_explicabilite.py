@@ -50,6 +50,8 @@ if "numba" not in sys.modules:
         print("(info) numba indisponible sur ce PC -> mode de secours activé, "
               "sans impact sur les résultats)")
 
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,10 +59,17 @@ import joblib
 import shap
 
 # ----------------------------------------------------------------
+# 0. Chemins robustes
+# ----------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+REPORTS_DIR = PROJECT_ROOT / "reports"
+
+# ----------------------------------------------------------------
 # 1. Chargement du modèle et des données
 # ----------------------------------------------------------------
-xgb = joblib.load("reports/model_xgb.pkl")
-test = pd.read_csv("data/test_clean.csv")
+xgb = joblib.load(REPORTS_DIR / "model_xgb.pkl")
+test = pd.read_csv(DATA_DIR / "test_clean.csv")
 
 TARGET = "SeriousDlqin2yrs"
 X_test = test.drop(columns=[TARGET, "AgeGroup"])
@@ -91,7 +100,7 @@ plt.figure()
 shap.plots.bar(shap_values, show=False, max_display=13)
 plt.title("Importance moyenne des variables (SHAP)")
 plt.tight_layout()
-plt.savefig("reports/shap_importance.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "shap_importance.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("\nGraphique sauvegardé : reports/shap_importance.png")
 
@@ -104,7 +113,7 @@ plt.figure()
 shap.plots.beeswarm(shap_values, show=False, max_display=13)
 plt.title("Impact et direction des variables (SHAP)")
 plt.tight_layout()
-plt.savefig("reports/shap_summary.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "shap_summary.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("Graphique sauvegardé : reports/shap_summary.png")
 
@@ -122,7 +131,7 @@ plt.figure()
 shap.plots.waterfall(shap_values[idx_risque], show=False, max_display=10)
 plt.title(f"Explication détaillée — client à risque (proba={probas[idx_risque]:.1%})")
 plt.tight_layout()
-plt.savefig("reports/shap_waterfall_risque.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "shap_waterfall_risque.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("Graphique sauvegardé : reports/shap_waterfall_risque.png")
 
@@ -136,7 +145,7 @@ plt.figure()
 shap.plots.waterfall(shap_values[idx_sur], show=False, max_display=10)
 plt.title(f"Explication détaillée — client sûr (proba={probas[idx_sur]:.1%})")
 plt.tight_layout()
-plt.savefig("reports/shap_waterfall_sur.png", dpi=120, bbox_inches="tight")
+plt.savefig(REPORTS_DIR / "shap_waterfall_sur.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("Graphique sauvegardé : reports/shap_waterfall_sur.png")
 
@@ -153,7 +162,7 @@ print("TOP 5 VARIABLES LES PLUS IMPORTANTES")
 print("=" * 60)
 print(importance_moyenne.head(5).to_string(index=False))
 
-importance_moyenne.to_csv("reports/shap_importance_table.csv", index=False)
+importance_moyenne.to_csv(REPORTS_DIR / "shap_importance_table.csv", index=False)
 
 print("\n" + "=" * 60)
 print("Tous les graphiques SHAP sont dans reports/")
