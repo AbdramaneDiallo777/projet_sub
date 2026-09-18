@@ -1,28 +1,7 @@
-"""
-Étape 4 — Explicabilité (SHAP)
-Projet : Scoring de risque explicable et robuste
-
-Explique les décisions du modèle XGBoost (le meilleur des 2 modèles) avec SHAP :
-    1. Importance globale des variables (quelles variables comptent le plus, en moyenne)
-    2. Summary plot (impact + direction de chaque variable)
-    3. Waterfall plot (explication détaillée pour un client précis)
-
-Comment lancer :
-    python src/04_explicabilite.py
-"""
-
 import sys
 import types
 
-# ------------------------------------------------------------------
-# Contournement Windows : sur certains PC, une stratégie de contrôle
-# d'application (Smart App Control) bloque le fichier .dll utilisé par
-# `numba` pour accélérer certains calculs internes de SHAP.
-# On remplace `numba` par un module factice AVANT l'import de shap :
-# shap fonctionne toujours normalement, juste un peu plus lentement
-# sur les gros volumes (sans impact ici, vu qu'on travaille sur un
-# échantillon de 1500 lignes).
-# ------------------------------------------------------------------
+
 if "numba" not in sys.modules:
     try:
         import numba  # noqa: F401
@@ -58,16 +37,11 @@ import matplotlib.pyplot as plt
 import joblib
 import shap
 
-# ----------------------------------------------------------------
-# 0. Chemins robustes
-# ----------------------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
-# ----------------------------------------------------------------
-# 1. Chargement du modèle et des données
-# ----------------------------------------------------------------
 xgb = joblib.load(REPORTS_DIR / "model_xgb.pkl")
 test = pd.read_csv(DATA_DIR / "test_clean.csv")
 
@@ -79,10 +53,7 @@ print("=" * 60)
 print("Calcul des SHAP values sur XGBoost...")
 print("=" * 60)
 
-# Pour aller plus vite, on calcule les SHAP values sur un échantillon
-# (1500 clients) plutôt que sur les 30 000 lignes du test set complet.
-# C'est une pratique standard : les résultats globaux (importance des
-# variables) sont déjà stables avec un échantillon de cette taille.
+#
 np.random.seed(42)
 sample_idx = np.random.choice(X_test.index, size=1500, replace=False)
 X_sample = X_test.loc[sample_idx]
@@ -93,9 +64,7 @@ shap_values = explainer(X_sample)
 
 print(f"SHAP values calculées sur un échantillon de {len(X_sample)} clients")
 
-# ----------------------------------------------------------------
-# 2. Importance globale des variables (bar plot)
-# ----------------------------------------------------------------
+
 plt.figure()
 shap.plots.bar(shap_values, show=False, max_display=13)
 plt.title("Importance moyenne des variables (SHAP)")
@@ -104,11 +73,7 @@ plt.savefig(REPORTS_DIR / "shap_importance.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("\nGraphique sauvegardé : reports/shap_importance.png")
 
-# ----------------------------------------------------------------
-# 3. Summary plot (impact + direction)
-# ----------------------------------------------------------------
-# Ce graphique montre, pour chaque variable, si une valeur haute ou basse
-# pousse la prédiction vers "défaut" ou "pas de défaut"
+
 plt.figure()
 shap.plots.beeswarm(shap_values, show=False, max_display=13)
 plt.title("Impact et direction des variables (SHAP)")
@@ -117,11 +82,7 @@ plt.savefig(REPORTS_DIR / "shap_summary.png", dpi=120, bbox_inches="tight")
 plt.close()
 print("Graphique sauvegardé : reports/shap_summary.png")
 
-# ----------------------------------------------------------------
-# 4. Waterfall plot pour un client à risque (exemple individuel)
-# ----------------------------------------------------------------
-# On choisit un client que le modèle juge à risque (proba élevée) pour
-# avoir un exemple parlant dans le rapport
+
 probas = xgb.predict_proba(X_sample)[:, 1]
 idx_risque = np.argmax(probas)
 
@@ -135,9 +96,6 @@ plt.savefig(REPORTS_DIR / "shap_waterfall_risque.png", dpi=120, bbox_inches="tig
 plt.close()
 print("Graphique sauvegardé : reports/shap_waterfall_risque.png")
 
-# ----------------------------------------------------------------
-# 5. Waterfall plot pour un client sûr (contre-exemple)
-# ----------------------------------------------------------------
 idx_sur = np.argmin(probas)
 print(f"Client sélectionné (sûr) : probabilité de défaut = {probas[idx_sur]:.2%}")
 
@@ -149,9 +107,7 @@ plt.savefig(REPORTS_DIR / "shap_waterfall_sur.png", dpi=120, bbox_inches="tight"
 plt.close()
 print("Graphique sauvegardé : reports/shap_waterfall_sur.png")
 
-# ----------------------------------------------------------------
-# 6. Résumé texte de l'importance des variables (pour le rapport écrit)
-# ----------------------------------------------------------------
+
 importance_moyenne = pd.DataFrame({
     "variable": X_sample.columns,
     "importance_shap": np.abs(shap_values.values).mean(axis=0),

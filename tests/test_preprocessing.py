@@ -1,11 +1,3 @@
-"""
-Tests unitaires du module de preprocessing partagé (src/preprocessing.py).
-
-Comment lancer (depuis la racine scoring_credit) :
-    pip install pytest
-    pytest tests/
-"""
-
 import sys
 from pathlib import Path
 

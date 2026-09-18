@@ -13,14 +13,6 @@ fairlearn==0.14.0
 fastapi==0.141.1
 uvicorn==0.52.4
 pydantic==2.13.5
-
-# imbalanced-learn a ete retire : le desequilibre de classes est deja
-# traite via class_weight="balanced" (regression logistique) et
-# scale_pos_weight (XGBoost). Ajouter du sur-echantillonnage SMOTE
-# par-dessus serait redondant et risquerait de fausser les probabilites
-# calibrees. Si un re-echantillonnage explicite devient necessaire :
-# imbalanced-learn==0.13.0
-
 # Dépendances de test (dev)
 pytest==8.4.2
 httpx==0.28.1

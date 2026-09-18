@@ -1,15 +1,3 @@
-"""
-Tests de l'API FastAPI (src/api.py).
-
-Nécessite que le pipeline ait déjà été lancé au moins une fois (les
-fichiers reports/model_xgb.pkl, reports/cleaning_params.json,
-reports/decision_threshold.json doivent exister).
-
-Comment lancer (depuis la racine scoring_credit) :
-    pip install pytest httpx
-    pytest tests/test_api.py
-"""
-
 import sys
 from pathlib import Path
 

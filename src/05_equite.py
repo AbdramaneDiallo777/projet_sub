@@ -1,36 +1,9 @@
-"""
-Étape 5 — Équité & robustesse
-Projet : Scoring de risque explicable et robuste
-
-Analyse si le modèle XGBoost traite équitablement les différentes tranches
-d'âge (variable identifiée comme sensible à l'étape 4 - SHAP), et teste
-sa robustesse face à de petites perturbations des données.
-
-AJOUT par rapport à la version initiale :
-    Le diagnostic seul ne suffit pas — un écart de demographic parity de
-    0.40 est trop important pour être simplement "mentionné dans le
-    rapport". On applique donc une MITIGATION via fairlearn.postprocessing
-    .ThresholdOptimizer : elle choisit des seuils de décision différents
-    par tranche d'âge de façon à satisfaire la contrainte "equalized odds"
-    (Hardt et al., 2016), à partir du même modèle XGBoost déjà entraîné
-    (pas de ré-entraînement nécessaire). On compare les métriques
-    d'équité AVANT / APRÈS mitigation, et l'objet est sauvegardé pour
-    être repris par l'API (décision finale équitable, tout en gardant
-    la probabilité brute et l'explication SHAP du modèle original).
-
-Comment lancer :
-    python src/05_equite.py
-"""
 
 import sys
 import types
 from pathlib import Path
 
-# ------------------------------------------------------------------
-# Contournement Windows : sur certains PC, une stratégie de contrôle
-# d'application (Smart App Control) bloque le fichier .dll utilisé par
-# `numba` pour accélérer certains calculs internes de SHAP/Fairlearn.
-# ------------------------------------------------------------------
+
 if "numba" not in sys.modules:
     try:
         import numba  # noqa: F401
@@ -63,9 +36,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import joblib
 
-# Warning interne à fairlearn (assignation de dtype dans son code interne,
-# sans impact sur les résultats) — voir fairlearn/postprocessing/
-# _interpolated_thresholder.py. Filtré pour ne pas polluer la sortie.
+
 warnings.filterwarnings(
     "ignore", category=FutureWarning, module="fairlearn.postprocessing.*"
 )
@@ -79,16 +50,12 @@ from fairlearn.metrics import (
 from fairlearn.postprocessing import ThresholdOptimizer
 from sklearn.metrics import recall_score, precision_score, accuracy_score
 
-# ----------------------------------------------------------------
-# 0. Chemins robustes
-# ----------------------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
-# ----------------------------------------------------------------
-# 1. Chargement du modèle et des données
-# ----------------------------------------------------------------
+
 xgb = joblib.load(REPORTS_DIR / "model_xgb.pkl")
 train = pd.read_csv(DATA_DIR / "train_clean.csv")
 test = pd.read_csv(DATA_DIR / "test_clean.csv")
@@ -111,9 +78,7 @@ print("ANALYSE D'ÉQUITÉ PAR TRANCHE D'ÂGE — AVANT MITIGATION")
 print("=" * 60)
 print(f"\nTranches d'âge présentes : {sensitive_test.unique().tolist()}")
 
-# ----------------------------------------------------------------
-# 2. Métriques par tranche d'âge (modèle brut, seuil 0.5)
-# ----------------------------------------------------------------
+
 metrics = {
     "selection_rate": selection_rate,
     "recall": recall_score,
@@ -140,16 +105,11 @@ print(f"Demographic parity difference : {dp_diff:.4f}  (tolérance usuelle < 0.1
 print(f"Equalized odds difference     : {eo_diff:.4f}  (tolérance usuelle < 0.1)")
 
 if dp_diff > 0.1 or eo_diff > 0.1:
-    print("\n⚠️  Écart notable détecté entre groupes d'âge -> mitigation appliquée ci-dessous.")
+    print("\n  Écart notable détecté entre groupes d'âge -> mitigation appliquée ci-dessous.")
 else:
-    print("\n✅ Écarts déjà dans une fourchette raisonnable.")
+    print("\n Écarts déjà dans une fourchette raisonnable.")
 
-# ----------------------------------------------------------------
-# 3. MITIGATION — ThresholdOptimizer (contrainte : equalized odds)
-# ----------------------------------------------------------------
-# On réutilise le modèle XGBoost déjà entraîné (prefit=True) : on ne le
-# ré-entraîne pas, on ajuste seulement les seuils de décision par groupe
-# de façon à satisfaire la contrainte d'équité choisie.
+
 print("\n" + "=" * 60)
 print("MITIGATION — fairlearn.postprocessing.ThresholdOptimizer")
 print("=" * 60)
@@ -210,9 +170,9 @@ print("(La mitigation dégrade parfois légèrement la performance globale : "
 joblib.dump(mitigator, REPORTS_DIR / "threshold_optimizer.pkl")
 print("\nObjet de mitigation sauvegardé : reports/threshold_optimizer.pkl")
 
-# ----------------------------------------------------------------
+
 # 4. Graphiques : avant / après mitigation
-# ----------------------------------------------------------------
+
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
 metric_frame.by_group["selection_rate"].plot(kind="bar", ax=axes[0, 0], color="steelblue")
@@ -244,9 +204,8 @@ for c in metric_frame_mitigated.by_group.columns:
 comparison_table.to_csv(REPORTS_DIR / "fairness_metrics_table.csv")
 print("Table sauvegardée : reports/fairness_metrics_table.csv")
 
-# ----------------------------------------------------------------
 # 5. Test de robustesse — perturbation des données (modèle brut)
-# ----------------------------------------------------------------
+
 print("\n" + "=" * 60)
 print("TEST DE ROBUSTESSE (perturbation +/- 5%)")
 print("=" * 60)
@@ -265,14 +224,14 @@ taux_changement = (y_pred != y_pred_perturbed).mean()
 print(f"Taux de prédictions qui changent après perturbation : {taux_changement:.2%}")
 
 if taux_changement < 0.05:
-    print("✅ Modèle stable : moins de 5% des décisions changent avec du bruit léger.")
+    print(" Modèle stable : moins de 5% des décisions changent avec du bruit léger.")
 else:
-    print("⚠️  Modèle sensible : plus de 5% des décisions changent -> "
+    print("  Modèle sensible : plus de 5% des décisions changent -> "
           "à mentionner comme limite dans le rapport.")
 
-# ----------------------------------------------------------------
+
 # 6. Résumé pour le rapport
-# ----------------------------------------------------------------
+
 summary = {
     "demographic_parity_difference_avant": dp_diff,
     "demographic_parity_difference_apres": dp_diff_mitigated,

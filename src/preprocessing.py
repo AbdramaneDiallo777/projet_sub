@@ -1,20 +1,3 @@
-"""
-Module partagé de preprocessing.
-
-Objectif : centraliser toute la logique de nettoyage / feature engineering
-utilisée à la fois par le pipeline d'entraînement (02_feature_engineering.py)
-et par l'API de production (api.py), pour :
-
-    1. Éviter la fuite de données (data leakage) : toutes les statistiques
-       (médianes, seuils de percentile) sont calculées UNIQUEMENT sur le
-       train set (`fit_cleaning_params`), puis appliquées telles quelles
-       au test set et aux nouvelles requêtes de l'API (`apply_cleaning`).
-    2. Éviter la duplication de code entre le pipeline et l'API : avant,
-       la création de TotalPastDueIncidents / HasPastDueHistory /
-       IncomePerDependent était dupliquée dans api.py. Elle est maintenant
-       définie une seule fois ici (`add_engineered_features`).
-"""
-
 from __future__ import annotations
 
 import json
@@ -71,12 +54,7 @@ def fit_cleaning_params(df: pd.DataFrame) -> dict:
 
 
 def apply_cleaning(df: pd.DataFrame, params: dict) -> pd.DataFrame:
-    """
-    Applique les statistiques de nettoyage (issues de fit_cleaning_params,
-    calculées sur le train) à n'importe quel DataFrame (train, test, ou
-    une requête API). Ne recalcule jamais de statistique sur les données
-    passées ici : c'est ce qui empêche la fuite de données.
-    """
+
     df = df.copy()
 
     # Codes d'erreur 96/98 -> médiane (du train)

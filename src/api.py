@@ -1,31 +1,5 @@
-"""
-Étape 6 — API FastAPI
-Projet : Scoring de risque explicable et robuste
 
-Expose le modèle XGBoost via une API REST :
-    - POST /predict : prend un profil client, retourne un score de risque
-      + les 5 variables qui ont le plus influencé la décision (SHAP)
-
-Corrections apportées par rapport à la version initiale :
-    - Chemins robustes (indépendants du dossier de lancement).
-    - Le nettoyage/feature engineering réutilise src/preprocessing.py
-      (les mêmes fonctions et les mêmes paramètres calculés sur le train
-      à l'étape 2) au lieu d'une logique dupliquée et non testée ici.
-    - La décision finale n'utilise plus un seuil fixe de 0.5 : elle
-      s'appuie sur l'objet de mitigation d'équité (ThresholdOptimizer,
-      étape 5), qui applique un seuil ajusté par tranche d'âge pour
-      satisfaire la contrainte d'équité. La probabilité brute et
-      l'explication SHAP restent celles du modèle XGBoost original
-      (transparence conservée).
-
-Comment lancer (depuis n'importe quel dossier) :
-    uvicorn src.api:app --reload   (depuis la racine scoring_credit)
-    ou
-    uvicorn api:app --reload       (depuis src/)
-
-Une fois lancé, ouvre http://127.0.0.1:8000/docs pour tester l'API
-directement dans le navigateur (interface Swagger générée automatiquement).
-"""
+#Étape 6 — API FastAPI
 
 import sys
 import types
@@ -75,16 +49,14 @@ warnings.filterwarnings(
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from preprocessing import apply_cleaning, add_engineered_features, load_cleaning_params
 
-# ----------------------------------------------------------------
+
 # 0. Chemins robustes
-# ----------------------------------------------------------------
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
 
-# ----------------------------------------------------------------
 # 1. Chargement du modèle, des paramètres de nettoyage et de la
 #    mitigation d'équité (une seule fois, au démarrage de l'API)
-# ----------------------------------------------------------------
 xgb = joblib.load(REPORTS_DIR / "model_xgb.pkl")
 explainer = shap.TreeExplainer(xgb)
 cleaning_params = load_cleaning_params(REPORTS_DIR / "cleaning_params.json")
@@ -127,9 +99,8 @@ app = FastAPI(
 )
 
 
-# ----------------------------------------------------------------
+
 # 2. Schéma des données attendues en entrée
-# ----------------------------------------------------------------
 class ClientProfile(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -156,11 +127,9 @@ class ClientProfile(BaseModel):
     NumberOfDependents: int = Field(..., json_schema_extra={"example": 1})
 
 
-# ----------------------------------------------------------------
 # 3. Reconstruction des features — réutilise EXACTEMENT la même logique
 #    (et les mêmes paramètres, calculés sur le train) que le pipeline
 #    d'entraînement, via src/preprocessing.py.
-# ----------------------------------------------------------------
 def construire_features(profil: ClientProfile) -> pd.DataFrame:
     data = profil.model_dump(by_alias=True)
     df = pd.DataFrame([data])
@@ -173,9 +142,8 @@ def construire_features(profil: ClientProfile) -> pd.DataFrame:
     return X, age_group
 
 
-# ----------------------------------------------------------------
 # 4. Endpoint principal
-# ----------------------------------------------------------------
+
 @app.post("/predict")
 def predict(profil: ClientProfile):
     X, age_group = construire_features(profil)
