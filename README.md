@@ -1,6 +1,6 @@
 # Scoring de risque crédit avec explicabilité et équité
 
-Ce projet a pour objectif de construire un modèle de scoring de crédit capable de prédire le risque de défaut de paiement, tout en restant explicable et en analysant son comportement vis-à-vis de variables sensibles comme l’âge.
+Ce projet est un **prototype pédagogique** de scoring de crédit. Il estime le risque de défaut à partir du dataset *Give Me Some Credit*, explique les prédictions avec SHAP et étudie les écarts de décision entre tranches d’âge avec Fairlearn. Il n’est pas destiné à prendre automatiquement des décisions de crédit en production.
 
 Le projet couvre les étapes suivantes :
 
@@ -46,13 +46,15 @@ scoring_credit/
 │   ├── cs-training.csv
 │   ├── train_clean.csv
 │   └── test_clean.csv
-├── reports/                  # Graphiques, modèles et tableaux exportés
+├── reports/                  # Rapports et artefacts générés localement
 │   ├── roc_curves.png
 │   ├── confusion_matrices.png
 │   ├── shap_importance.png
 │   ├── fairness_by_age.png
-│   ├── model_xgb.pkl
-│   └── fairness_metrics_table.csv
+│   ├── cleaning_params.json
+│   ├── decision_threshold.json
+│   ├── fairness_metrics_table.csv
+│   └── *.pkl                 # Modèles/mitigator générés, non versionnés
 ├── src/                      # Scripts Python organisés par étape
 │   ├── 01_exploration.py
 │   ├── 02_feature_engineering.py
@@ -60,7 +62,8 @@ scoring_credit/
 │   ├── 04_explicabilite.py
 │   ├── 05_equite.py
 │   ├── api.py
-│   └── __init__.py
+│   └── preprocessing.py
+├── tests/                    # Tests du preprocessing et de l'API
 ├── notebooks/               # Espace pour expérimentations ou analyses complémentaires
 ├── requirements.txt         # Dépendances Python
 ├── README.md                # Documentation du projet
@@ -156,21 +159,15 @@ Variables clés :
 
 Avant de lancer le projet, il faut avoir :
 
-- Python 3.9 ou plus,
+- Python 3.11 ou plus,
 - pip installé,
-- un environnement virtuel recommandé.
+- le fichier `data/cs-training.csv` (source : dataset Kaggle *Give Me Some Credit*).
 
 ---
 
 ## Installation
 
-Dans le dossier du projet :
-
-```bash
-pip install -r requirements.txt
-```
-
-Sous Windows, dans PowerShell :
+Depuis le dossier `scoring_credit`, sous Windows/PowerShell :
 
 ```powershell
 python -m venv .venv
@@ -178,9 +175,13 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Sous macOS/Linux, activez l’environnement avec `source .venv/bin/activate` après sa création, puis installez les dépendances avec `pip install -r requirements.txt`.
+
 ---
 
-## Lancement du projet
+## Exécution complète
+
+Lancez les commandes depuis le dossier `scoring_credit`. Les étapes doivent être exécutées dans l’ordre : les scripts réutilisent les données et artefacts produits par les étapes précédentes.
 
 ### Étape 1 : exploration
 
@@ -212,35 +213,56 @@ python src/04_explicabilite.py
 python src/05_equite.py
 ```
 
-### Étape 6 : API
+### Étape 6 : lancer l’API
+
+L’API a besoin des artefacts créés par les étapes 2 et 3 (`train_clean.csv`, `test_clean.csv`, `cleaning_params.json`, `model_xgb.pkl` et `decision_threshold.json`). L’étape 5 génère en plus `threshold_optimizer.pkl`, utilisé pour la décision corrigée par groupe d’âge ; sans cet artefact, l’API revient au seuil global optimisé.
 
 ```bash
 uvicorn src.api:app --reload
 ```
 
-Ensuite, ouvrir :
+La documentation interactive est disponible à l’adresse [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-- http://127.0.0.1:8000/docs
+### Tester l’API
 
-pour tester l’API Swagger.
+`GET /` vérifie l’état du service. `POST /predict` attend les champs suivants ; les noms de variables contenant des tirets doivent être conservés tels quels :
 
-### Étape 7 (optionnelle) : tests automatisés
+```json
+{
+   "RevolvingUtilizationOfUnsecuredLines": 0.3,
+   "age": 45,
+   "NumberOfTime30-59DaysPastDueNotWorse": 0,
+   "DebtRatio": 0.4,
+   "MonthlyIncome": 5000,
+   "NumberOfOpenCreditLinesAndLoans": 8,
+   "NumberOfTimes90DaysLate": 0,
+   "NumberRealEstateLoansOrLines": 1,
+   "NumberOfTime60-89DaysPastDueNotWorse": 0,
+   "NumberOfDependents": 1
+}
+```
+
+La réponse fournit la probabilité brute du modèle XGBoost, la décision, la méthode de décision utilisée, la tranche d’âge et les cinq contributions SHAP principales. La mitigation Fairlearn ne modifie ni la probabilité ni son explication ; elle ajuste uniquement la décision finale. Les valeurs SHAP sont celles du modèle brut et ne constituent pas, à elles seules, une justification réglementaire.
+
+### Tests automatisés
 
 ```bash
 pytest tests/
 ```
 
+Les tests de preprocessing peuvent être exécutés indépendamment. Les tests de l’API sont ignorés tant que les artefacts du modèle n’ont pas été générés par le pipeline.
+
 ---
 
 ## Résultats attendus
 
-Le projet produit des fichiers dans le dossier [reports](reports) :
+Les scripts produisent des fichiers dans le dossier [reports](reports) :
 
 - cartes de performance des modèles,
 - graphiques SHAP,
 - tableaux d’importance des variables,
 - métriques d’équité,
-- modèles entraînés (.pkl).
+- modèles et mitigateurs sérialisés (`.pkl`). Ces artefacts sont générés localement et exclus de Git ; après un clone, relancez les étapes du pipeline avant de démarrer l’API.
 
 ---
 
@@ -257,7 +279,6 @@ Le projet produit des fichiers dans le dossier [reports](reports) :
 - Fairlearn
 - FastAPI
 - Uvicorn
-- Imbalanced-learn
 
 ---
 
@@ -268,7 +289,7 @@ Le projet produit des fichiers dans le dossier [reports](reports) :
 - comparaison de plusieurs modèles,
 - interprétation de la prédiction avec SHAP,
 - analyse d’équité sur les tranches d’âge,
-- fabrication d’une API exploitable en production.
+- API de démonstration documentée avec FastAPI/Swagger.
 
 ---
 
@@ -284,8 +305,9 @@ Le projet produit des fichiers dans le dossier [reports](reports) :
 
 ## Corrections apportées suite à revue de code
 
-Une revue a identifié plusieurs problèmes méthodologiques ; voici les
-corrections apportées :
+Les choix méthodologiques importants sont documentés ci-dessous. Les
+chiffres de performance et d’équité dépendent des artefacts et doivent
+être recalculés après tout changement de données ou de dépendances.
 
 1. **Fuite de données (data leakage) corrigée.** Auparavant, l'imputation
    des valeurs manquantes et le capping des outliers étaient calculés sur
@@ -295,31 +317,27 @@ corrections apportées :
    `src/preprocessing.py`, fonctions `fit_cleaning_params` /
    `apply_cleaning`), puis appliquées telles quelles au test et à l'API.
 
-2. **Mitigation de l'inéquité par âge**, et non plus simple constat.
+2. **Mitigation expérimentale de l'inéquité par âge**, et non plus simple constat.
    `src/05_equite.py` applique désormais `fairlearn.postprocessing
    .ThresholdOptimizer` (contrainte `equalized_odds`, objectif
-   `balanced_accuracy_score`) sur le modèle déjà entraîné. Résultat sur
-   ce dataset : demographic parity difference 0.40 → 0.05, equalized odds
-   difference 0.40 → 0.08 (tolérance usuelle < 0.10), au prix d'une
-   baisse de recall global (0.78 → 0.73) — un compromis à valider avec
-   l'équipe métier avant production. L'API utilise cette version corrigée
-   pour la décision finale, tout en gardant la probabilité brute et
-   l'explication SHAP du modèle original pour la transparence.
+   `balanced_accuracy_score`) sur le modèle déjà entraîné. Les métriques
+   avant/après sont enregistrées dans les rapports ; la mitigation peut
+   réduire certains écarts au prix d'une baisse de performance. Elle ne
+   garantit ni l'absence de discrimination ni la conformité réglementaire,
+   et son adéquation doit être évaluée avec le contexte métier.
 
 3. **Seuil de décision optimisé** au lieu du seuil arbitraire de 0.5 :
    recherché par validation croisée sur le train (maximisation du
    F1-score sur la classe "défaut"), sauvegardé dans
    `reports/decision_threshold.json`.
 
-4. **Versions des dépendances figées** dans `requirements.txt`
-   (`pandas==2.2.3` notamment : une version plus récente de pandas casse
-   `fairlearn.postprocessing.ThresholdOptimizer`). `imbalanced-learn` a
-   été retiré car jamais utilisé (le déséquilibre est déjà géré via
-   `class_weight` / `scale_pos_weight`).
+4. **Versions des dépendances figées** dans `requirements.txt` pour
+   stabiliser l’environnement. Le déséquilibre des classes est géré via
+   `class_weight` / `scale_pos_weight`.
 
-5. **`.gitignore` réel ajouté** (mentionné dans le README initial mais
-   absent) : exclut `.venv/`, `__pycache__/`, les CSV volumineux et les
-   modèles `.pkl` du suivi git.
+5. **Artefacts générés exclus de Git** : les modèles sérialisés ne sont
+   pas inclus dans le dépôt ; le pipeline doit être relancé localement
+   pour les recréer.
 
 6. **Chemins robustes** : tous les scripts utilisent désormais des
    chemins relatifs à leur propre emplacement (`Path(__file__)`) au lieu
@@ -335,10 +353,10 @@ corrections apportées :
    preprocessing (dont un test anti-régression sur le data leakage) et
    tests de l'API (`pytest tests/`).
 
-Point non corrigé, documenté comme limite assumée : la robustesse au
-bruit reste à la limite du seuil visé (~5% de décisions qui changent
-avec une perturbation de ±5% des variables), ce qui n'a pas justifié de
-changement de modèle à ce stade.
+La robustesse aux perturbations reste une limite à surveiller. Les
+résultats du test sont calculés par le script d’équité et sauvegardés
+dans les rapports ; ils ne doivent pas être considérés comme une garantie
+de stabilité en production.
 
 ---
 
