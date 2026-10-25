@@ -80,3 +80,16 @@ def test_predict_missing_field_returns_422(client):
     del profil_incomplet["age"]
     response = client.post("/predict", json=profil_incomplet)
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("age", 0), ("age", 121), ("MonthlyIncome", -1), ("DebtRatio", -0.1)],
+)
+def test_predict_rejects_values_outside_valid_ranges(client, field, value):
+    profil_invalide = dict(VALID_PROFILE)
+    profil_invalide[field] = value
+
+    response = client.post("/predict", json=profil_invalide)
+
+    assert response.status_code == 422

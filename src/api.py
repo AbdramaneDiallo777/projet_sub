@@ -105,26 +105,37 @@ class ClientProfile(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     RevolvingUtilizationOfUnsecuredLines: float = Field(
-        ..., json_schema_extra={"example": 0.3},
+        ..., ge=0, json_schema_extra={"example": 0.3},
         description="Taux d'utilisation du crédit renouvelable",
     )
-    age: int = Field(..., json_schema_extra={"example": 45}, description="Âge du client")
+    age: int = Field(
+        ..., ge=1, le=120, json_schema_extra={"example": 45},
+        description="Âge du client (de 1 à 120 ans)",
+    )
     NumberOfTime30_59DaysPastDueNotWorse: int = Field(
-        ..., json_schema_extra={"example": 0}, alias="NumberOfTime30-59DaysPastDueNotWorse"
+        ..., ge=0, json_schema_extra={"example": 0},
+        alias="NumberOfTime30-59DaysPastDueNotWorse",
     )
     DebtRatio: float = Field(
-        ..., json_schema_extra={"example": 0.4}, description="Ratio d'endettement"
+        ..., ge=0, json_schema_extra={"example": 0.4},
+        description="Ratio d'endettement",
     )
     MonthlyIncome: float = Field(
-        ..., json_schema_extra={"example": 5000}, description="Revenu mensuel"
+        ..., ge=0, json_schema_extra={"example": 5000},
+        description="Revenu mensuel",
     )
-    NumberOfOpenCreditLinesAndLoans: int = Field(..., json_schema_extra={"example": 8})
-    NumberOfTimes90DaysLate: int = Field(..., json_schema_extra={"example": 0})
-    NumberRealEstateLoansOrLines: int = Field(..., json_schema_extra={"example": 1})
+    NumberOfOpenCreditLinesAndLoans: int = Field(
+        ..., ge=0, json_schema_extra={"example": 8}
+    )
+    NumberOfTimes90DaysLate: int = Field(..., ge=0, json_schema_extra={"example": 0})
+    NumberRealEstateLoansOrLines: int = Field(
+        ..., ge=0, json_schema_extra={"example": 1}
+    )
     NumberOfTime60_89DaysPastDueNotWorse: int = Field(
-        ..., json_schema_extra={"example": 0}, alias="NumberOfTime60-89DaysPastDueNotWorse"
+        ..., ge=0, json_schema_extra={"example": 0},
+        alias="NumberOfTime60-89DaysPastDueNotWorse",
     )
-    NumberOfDependents: int = Field(..., json_schema_extra={"example": 1})
+    NumberOfDependents: int = Field(..., ge=0, json_schema_extra={"example": 1})
 
 
 # 3. Reconstruction des features — réutilise EXACTEMENT la même logique
